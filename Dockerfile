@@ -8,4 +8,4 @@ COPY /requirements.txt /arrSync.py /entrypoint.py /app/
 
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-CMD entrypoint.py
+CMD python entrypoint.py
