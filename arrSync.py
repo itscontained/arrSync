@@ -2,16 +2,18 @@ from sys import exit
 from requests import Session
 from os import environ as env
 
+VERSION = "0.1.0"
+
 
 def run():
     app = env.get('ARRSYNC_APP', 'Empty').lower()
     search_on_add = True if env.get('ARRSYNC_SEARCH_ON_ADD', 'False').lower() == 'true' else False
 
-    url_master = env.get('ARRSYNC_URL_MASTER', '').rstrip('/')  # e.g. 'http://192.168.1.100/sonarr'
+    url_master = env.get('ARRSYNC_URL_MASTER', '').rstrip('/')
     api_key_master = env.get('ARRSYNC_API_KEY_MASTER', '')
     media_base_path_master = env.get('ARRSYNC_MEDIA_BASE_PATH_MASTER', '')
 
-    url_slave = env.get('ARRSYNC_URL_SLAVE', '').rstrip('/')  # e.g. 'http://192.168.1.101/sonarr'
+    url_slave = env.get('ARRSYNC_URL_SLAVE', '').rstrip('/')
     api_key_slave = env.get('ARRSYNC_API_KEY_SLAVE', '')
     quality_profile_id_slave = env.get('ARRSYNC_QUALITY_PROFILE_ID_SLAVE', '')
     media_base_path_slave = env.get('ARRSYNC_MEDIA_BASE_PATH_SLAVE', '')
