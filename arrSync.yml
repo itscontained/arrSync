@@ -1,0 +1,239 @@
+Description: >
+  This template sets up arrSync to sync data between a master and slave instance by using AWS Lambda and Amazon CloudWatch Events.
+Parameters:
+  arrSyncApp:
+    Type: String
+    Default: radarr
+    AllowedValues:
+      - sonarr
+      - radarr
+    Description: Application type to sync
+  arrSyncURLMaster:
+    Type: String
+    Default: "https://yourdomain.tld/radarr"
+    Description: URL to reach for master instance
+  arrSyncAPIKeyMaster:
+    Type: String
+    Default: asdfasdf
+    Description: API key to authenticate to master instance
+  arrSyncURLSlave:
+    Type: String
+    Default: "https://yourdomain.tld/radarr4k"
+    Description: URL to reach for slave instance
+  arrSyncAPIKeySlave:
+    Type: String
+    Default: asdfasdf
+    Description: API key to authenticate to slave instance
+  arrSyncMediaBasePathMaster:
+    Type: String
+    Default: /movies/
+    Description: Base path movies are saved to in master instance
+  arrSyncMediaBasePathSlave:
+    Type: String
+    Default: /movies4k/
+    Description: Base path movies are saved to in slave instance
+  arrSyncQualityProfileIDSlave:
+    Type: Number
+    Default: 1
+    Description: The Quality Profile ID assosiated with the slave instance
+  arrSyncSearchOnAdd:
+    Type: String
+    Default: false
+    Description: Whether or not to search on sync
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterLabels:
+      arrSyncApp:
+        default: "Application type"
+      arrSyncURLMaster:
+        default: "Master URL"
+      arrSyncAPIKeyMaster:
+        default: "Master API Key"
+      arrSyncURLSlave:
+        default: "Slave URL"
+      arrSyncAPIKeySlave:
+        default: "Slave API Key"
+      arrSyncMediaBasePathMaster:
+        default: "Master base media path"
+      arrSyncMediaBasePathSlave:
+        default: "Slave base media path"
+      arrSyncQualityProfileIDSlave:
+        default: "Slave quality profile ID"
+      arrSyncSearchOnAdd:
+        default: "Search for media on add"
+    ParameterGroups:
+      - Label:
+          default: General
+        Parameters:
+          - arrSyncApp
+          - arrSyncSearchOnAdd
+      - label:
+          default: Master
+        Paramaters:
+          - arrSyncURLMaster
+          - arrSyncAPIKeyMaster
+          - arrSyncMediaBasePathMaster
+      - label:
+          default: Slave
+        Paramaters:
+          - arrSyncURLSlave
+          - arrSyncAPIKeySlave
+          - arrSyncMediaBasePathSlave
+          - arrSyncQualityProfileIDSlave
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+
+  LambdaRolePolicies:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: arrSync
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+      Roles:
+        -
+          Ref: LambdaExecutionRole
+
+  arrSyncFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: arrSync.aws
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          ARRSYNC_API_KEY_MASTER: !Ref arrSyncAPIKeyMaster
+          ARRSYNC_API_KEY_SLAVE: !Ref arrSyncAPIKeySlave
+          ARRSYNC_APP: !Ref arrSyncApp
+          ARRSYNC_MEDIA_BASE_PATH_MASTER: !Ref arrSyncMediaBasePathMaster
+          ARRSYNC_MEDIA_BASE_PATH_SLAVE: !Ref arrSyncMediaBasePathSlave
+          ARRSYNC_QUALITY_PROFILE_ID_SLAVE: !Ref arrSyncQualityProfileIDSlave
+          ARRSYNC_SEARCH_ON_ADD: !Ref arrSyncSearchOnAdd
+          ARRSYNC_URL_MASTER: !Ref arrSyncURLMaster
+          ARRSYNC_URL_SLAVE: !Ref arrSyncURLSlave
+      Code:
+        ZipFile: >
+          from sys import exit
+          from requests import Session
+          from os import environ as env
+
+
+          def run():
+              app = env.get('ARRSYNC_APP', 'Empty').lower()
+              search_on_add = True if env.get('ARRSYNC_SEARCH_ON_ADD', 'False').lower() == 'true' else False
+
+              url_master = env.get('ARRSYNC_URL_MASTER', '').rstrip('/')  # e.g. 'http://192.168.1.100/sonarr'
+              api_key_master = env.get('ARRSYNC_API_KEY_MASTER', '')
+              media_base_path_master = env.get('ARRSYNC_MEDIA_BASE_PATH_MASTER', '')
+
+              url_slave = env.get('ARRSYNC_URL_SLAVE', '').rstrip('/')  # e.g. 'http://192.168.1.101/sonarr'
+              api_key_slave = env.get('ARRSYNC_API_KEY_SLAVE', '')
+              quality_profile_id_slave = env.get('ARRSYNC_QUALITY_PROFILE_ID_SLAVE', '')
+              media_base_path_slave = env.get('ARRSYNC_MEDIA_BASE_PATH_SLAVE', '')
+
+              opts = {
+                  'sonarr': {
+                      'idtype': 'tvdbId',
+                      'endpoint': 'series'
+                  },
+                  'radarr': {
+                      'idtype': 'tmdbId',
+                      'endpoint': 'movie'
+                  }
+              }
+
+              if app not in opts:
+                  exit(f"Error: {app} does not equal 'sonarr' or 'radarr'")
+              if not all([url_master, url_slave, api_key_master, api_key_slave, quality_profile_id_slave, media_base_path_master,
+                          media_base_path_slave]):
+                  exit(f"Error: Missing one or more required environment variables")
+
+              full_url_master = f"{url_master}/api/{opts[app]['endpoint']}"
+              full_url_slave = f"{url_slave}/api/{opts[app]['endpoint']}"
+
+              session_master = Session()
+              session_master.params = {'apikey': api_key_master}
+              session_slave = Session()
+              session_slave.params = {'apikey': api_key_slave}
+
+              get_master = session_master.get(full_url_master).json()
+              get_slave = session_slave.get(full_url_slave).json()
+
+              id_list_master = [m[opts[app]['idtype']] for m in get_master]
+              id_list_slave = [m[opts[app]['idtype']] for m in get_slave]
+              missing = [m for m in get_master if m[opts[app]['idtype']] not in id_list_slave]
+              removed = [m for m in get_slave if m[opts[app]['idtype']] not in id_list_master]
+
+              for media in missing:
+                  payload = {
+                      'title': media['title'],
+                      'qualityProfileId': quality_profile_id_slave,
+                      'titleSlug': media['titleSlug'],
+                      'images': [],
+                      'path': media['path'].replace(media_base_path_master, media_base_path_slave),
+                      'monitored': True,
+                      opts[app]['idtype']: media[opts[app]['idtype']]
+                  }
+                  if app == 'sonarr':
+                      payload.update({'seasons': [], 'addOptions': {'searchForMissingEpisodes': search_on_add}})
+                  elif app == 'radarr':
+                      payload.update({'year': media['year'], 'minimumAvailability': 'inCinemas',
+                                      'addOptions': {'searchForMovie': search_on_add}})
+
+                  print('Adding {} to slave instance'.format(media['title']))
+                  p = session_slave.post(full_url_slave, json=payload)
+                  print(p.json())
+
+              for media in removed:
+                  print('Removing {} from slave instance'.format(media['title']))
+                  d = session_slave.delete(f"{full_url_slave}/{media['id']}")
+                  print(d.json())
+
+
+          def aws(event, lambda_context):
+              run()
+
+
+          if __name__ == "__main__":
+              run()
+      Runtime: python3.7
+
+  arrSyncCronRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: arrSyncCronRule
+      ScheduleExpression: rate(15 minutes)
+      State: ENABLED
+      Targets:
+        -
+          Arn: !GetAtt arrSyncFunction.Arn
+          Id: arrSyncApp
+
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref arrSyncApp
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt arrSyncCronRule.Arn
