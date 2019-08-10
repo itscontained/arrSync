@@ -12,6 +12,7 @@ Environment Variables:
 * ARRSYNC_API_KEY_SLAVE: `yourotherapikey`
 * ARRSYNC_QUALITY_PROFILE_ID_SLAVE: `1`
 * ARRSYNC_MEDIA_BASE_PATH_SLAVE: `/tv4k/`
+* ARRSYNC_CRON_SCHEDULE: (Default: `*/15 * * * *`) (Docker only)
 
 ### Lambda
 1. Create a function

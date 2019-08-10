@@ -4,7 +4,7 @@ LABEL maintainers="dirtycajunrice"
 
 WORKDIR /app
 
-COPY /requirements.txt /arrSync.py /app/
+COPY /requirements.txt /arrSync.py /entrypoint.py /app/
 
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
