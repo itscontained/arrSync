@@ -74,6 +74,8 @@ def run():
         d = session_slave.delete(f"{full_url_slave}/{media['id']}")
         print(d.json())
 
+    print("Pass completed")
+
 
 def aws(event, lambda_context):
     run()
