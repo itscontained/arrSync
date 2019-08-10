@@ -6,7 +6,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from arrSync import run
 
 cron = env.get('ARRSYNC_CRON_SCHEDULE', '*/15 * * * *').split()
-if len(cron.split()) != 5:
+if len(cron) != 5:
     exit('Cron expression configured incorrectly')
 
 scheduler = BackgroundScheduler()
