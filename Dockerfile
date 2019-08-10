@@ -6,7 +6,8 @@ WORKDIR /app
 
 COPY /requirements.txt /arrSync.py /entrypoint.py /app/
 
-RUN pip install --no-cache-dir -r /app/requirements.txt && \
+RUN apk add --no-cache tzdata && \
+    pip install --no-cache-dir -r /app/requirements.txt && \
     pip install --no-cache-dir apscheduler
 
 CMD python entrypoint.py
