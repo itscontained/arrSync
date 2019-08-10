@@ -33,12 +33,16 @@ def run():
                 media_base_path_slave]):
         exit(f"Error: Missing one or more required environment variables")
 
-    full_url_master = f"{url_master}/api/{opts[app]['endpoint']}?apikey={api_key_master}"
-    full_url_slave = f"{url_slave}/api/{opts[app]['endpoint']}?apikey={api_key_slave}"
+    full_url_master = f"{url_master}/api/{opts[app]['endpoint']}"
+    full_url_slave = f"{url_slave}/api/{opts[app]['endpoint']}"
 
-    session = Session()
-    get_master = session.get(full_url_master).json()
-    get_slave = session.get(full_url_slave).json()
+    session_master = Session()
+    session_master.params = {'apikey': api_key_master}
+    session_slave = Session()
+    session_slave.params = {'apikey': api_key_slave}
+
+    get_master = session_master.get(full_url_master).json()
+    get_slave = session_slave.get(full_url_slave).json()
 
     id_list_master = [m[opts[app]['idtype']] for m in get_master]
     id_list_slave = [m[opts[app]['idtype']] for m in get_slave]
@@ -62,11 +66,13 @@ def run():
                             'addOptions': {'searchForMovie': search_on_add}})
 
         print('Adding {} to slave instance'.format(media['title']))
-        session.post(full_url_slave, json=payload)
+        p = session_slave.post(full_url_slave, json=payload)
+        print(p.json())
 
     for media in removed:
         print('Removing {} from slave instance'.format(media['title']))
-        session.post(full_url_slave, json={'id': media['id']})
+        d = session_slave.delete(f"{full_url_slave}/{media['id']}")
+        print(d.json())
 
 
 if __name__ == "__main__":
