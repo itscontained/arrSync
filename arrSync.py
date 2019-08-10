@@ -75,5 +75,9 @@ def run():
         print(d.json())
 
 
+def aws(event, lambda_context):
+    run()
+
+
 if __name__ == "__main__":
     run()
