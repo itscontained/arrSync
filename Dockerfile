@@ -4,9 +4,9 @@ LABEL maintainers="dirtycajunrice"
 
 WORKDIR /app
 
-COPY /requirements.txt /arrSync.py /entrypoint.py /app/
+COPY /requirements.txt /arrSync.py /app/
 
 RUN apk add --no-cache tzdata && \
     pip install --no-cache-dir -r /app/requirements.txt
 
-CMD python entrypoint.py
+CMD python arrSync.py
