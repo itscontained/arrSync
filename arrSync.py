@@ -2,7 +2,7 @@ from sys import exit
 from requests import Session
 from os import environ as env
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 def run():
